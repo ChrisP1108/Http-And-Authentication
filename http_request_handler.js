@@ -23,7 +23,7 @@ class HttpReq {
     // Success 200 or 201 Status Code
 
     static async #successRequest(res, getData = true) {
-        const response = { ok: res.ok, status: res.status };
+        const response = { ok: res.ok, status: res.status, msg: 'Success' };
 
         if (getData) {
             response.response_data = await res.json();

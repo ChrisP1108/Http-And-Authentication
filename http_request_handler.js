@@ -10,7 +10,7 @@ class HttpReq {
 
     static #fetchFailed(err) {
         console.error(err);
-        return { ok: false, status: 0, msg: err.toString() }
+        return { ok: false, status: null, msg: err.toString() }
     }
 
     // Non 200 or 201 Status Code 
@@ -66,8 +66,8 @@ class HttpReq {
                 } catch (err) {
                     response = this.#fetchFailed(err);
                 }
+                response.url = args[i];
             }
-            response.url = args[i];
             response.method = method;
             output.push(response);
         }
@@ -96,9 +96,9 @@ class HttpReq {
                 } catch (err) {
                     response = this.#fetchFailed(err);
                 }
+                response.request_data = args[i].data;
+                response.url = args[i].url;
             }
-            response.request_data = args[i].data;
-            response.url = args[i].url;
             response.method = method;
             output.push(response);
         }
@@ -127,9 +127,9 @@ class HttpReq {
                 } catch (err) {
                     response = this.#fetchFailed(err);
                 }
+                response.request_data = args[i].data;
+                response.url = args[i].url;
             }
-            response.request_data = args[i].data;
-            response.url = args[i].url;
             response.method = method;
             output.push(response);
         }
@@ -156,8 +156,8 @@ class HttpReq {
                 } catch (err) {
                     response = this.#fetchFailed(err);
                 }
+                response.url = args[i];
             }
-            response.url = args[i];
             response.method = method;
             output.push(response);
         }

@@ -174,10 +174,11 @@ class HttpReq {
                 args[i] = {};
                 args[i].url = str;
             }
+            response = this.#argError(args[i], false, method);
             if (!response) {
                 try {
                     const headers = this.#headers(args[i].headers);
-                    const res = await fetch(args[i], {
+                    const res = await fetch(args[i].url, {
                         method,
                         headers
                     });

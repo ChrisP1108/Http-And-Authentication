@@ -40,22 +40,59 @@ class HttpReq {
 
     static #reqError(req, dataNeeded) {
         const statusKeys = { ok: false, status: null };
+        const reqMethods = ["GET", "POST", "PUT", "DELETE"];
+        const headers = this.#headers(req.headers);
         if (!req) {
             const noParamMsg = `No parameter data provided for http request. Parameter must have an object with a "method" and "url" key. For "POST" and "PUT" requests, a "data" must also be provided.`;
             console.error(noParamMsg);
-            return { ...statusKeys, msg: noParamMsg };
+            return { ...statusKeys, msg: noParamMsg, request_headers: headers };
         } else if (!req.method) {
             const noMethodMsg = `No http request method parameter provided request.  Parameter must have an object with a "method" key.`;
             console.error(noMethodMsg);
-            return { ...statusKeys, msg: noMethodMsg };
+            const response = { ...statusKeys, msg: noMethodMsg, request_headers: headers };
+            if (req.url) {
+                response.url = req.url;
+            }
+            if (req.data) {
+                response.request_data = req.data;
+            }
+            return response;
+        } else if (!reqMethods.includes(req.method.toUpperCase())) {
+            const invalidMethod = `Http request not valid.  Request method must be "GET", "POST", "PUT", or "DELETE"`;
+            console.error(invalidMethod);
+            const response = { ...statusKeys, msg: invalidMethod, request_headers: headers };
+            if (req.url) {
+                response.url = req.url;
+            }
+            if (req.method) {
+                response.method = `${req.method.toUpperCase()} (Invalid Request Type)`;
+            }
+            if (req.data) {
+                response.request_data = req.data;
+            }
+            return response;
         } else if (!req.url) {
             const noUrlMsg = `No http request url parameter data provided for ${req.method} request.  Parameter must have an object with a "url" key.`;
             console.error(noUrlMsg);
-            return { ...statusKeys, msg: noUrlMsg };
+            const response = { ...statusKeys, msg: noUrlMsg, request_headers: headers };
+            if (req.method) {
+                response.method = req.method;
+            }
+            if (req.data) {
+                response.request_data = req.data;
+            }
+            return response;
         } else if (dataNeeded && !req.data) {
             const noDataParam = `${req.method} request must have an object parameter with a "data" key.`;
             console.error(noDataParam);
-            return { ...statusKeys, msg: noDataParam };
+            const response = { ...statusKeys, msg: noDataParam, request_headers: headers };
+            if (req.method) {
+                response.method = req.method;
+            }
+            if (req.url) {
+                response.url = req.url;
+            }
+            return response;
         } else return false;
     }
 
@@ -90,8 +127,8 @@ class HttpReq {
                 }
                 response.request_data = reqs[i].data;
                 response.url = reqs[i].url;
+                response.method = reqs[i].method.toUpperCase();
             }
-            response.method = reqs[i].method;
             output.push(response);
         }
         return output;

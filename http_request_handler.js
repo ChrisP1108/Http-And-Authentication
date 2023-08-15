@@ -63,6 +63,10 @@ class HttpReq {
 
     static async init(reqs) {
         const output = [];
+        if (!reqs || !reqs.length) {
+            console.error('A parameter consisting of an array with at least one object containing "url" and "method" keys and values must be passed in to the init function.');
+            return;
+        }
         for (let i = 0; reqs.length > i; i++) {
             let response;
             const getOrDeleteReq = reqs[i].method.toLowerCase() === "get" || reqs[i].method.toLowerCase() === "delete";

@@ -1,4 +1,4 @@
-export class HttpReq {
+export default class HttpReq {
 
     // HTTP Request Header Content-Type: Application/JSON And Additional Headers
 

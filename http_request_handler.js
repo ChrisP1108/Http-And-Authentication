@@ -1,4 +1,4 @@
-class HttpReq {
+export class HttpReq {
 
     // HTTP Request Header Content-Type: Application/JSON And Additional Headers
 
@@ -76,7 +76,7 @@ class HttpReq {
             console.error(noUrlMsg);
             const response = { ...statusKeys, msg: noUrlMsg, request_headers: headers };
             if (req.method) {
-                response.method = req.method;
+                response.method = req.method.toUpperCase();
             }
             if (req.data) {
                 response.request_data = req.data;
@@ -87,7 +87,7 @@ class HttpReq {
             console.error(noDataParam);
             const response = { ...statusKeys, msg: noDataParam, request_headers: headers };
             if (req.method) {
-                response.method = req.method;
+                response.method = req.method.toUpperCase();
             }
             if (req.url) {
                 response.url = req.url;

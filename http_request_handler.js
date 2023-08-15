@@ -58,7 +58,7 @@ export default class HttpReq {
             }
             return response;
         } else if (!reqMethods.includes(req.method.toUpperCase())) {
-            const invalidMethod = `Http request not valid.  Request method must be "GET", "POST", "PUT", or "DELETE"`;
+            const invalidMethod = `Http request method of "${req.method.toUpperCase()}" not valid.  Request method must be "GET", "POST", "PUT", or "DELETE"`;
             console.error(invalidMethod);
             const response = { ...statusKeys, msg: invalidMethod, request_headers: headers };
             if (req.url) {

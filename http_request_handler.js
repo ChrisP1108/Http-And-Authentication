@@ -65,7 +65,7 @@ export default class HttpReq {
                 response.url = req.url;
             }
             if (req.method) {
-                response.method = `${req.method.toUpperCase()} (Invalid Request Type)`;
+                response.method = `${req.method.toUpperCase()} (Invalid Request Method)`;
             }
             if (req.data) {
                 response.request_data = req.data;

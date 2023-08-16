@@ -135,6 +135,6 @@ export default class HttpReq {
             }
             output.push(response);
         }
-        return output;
+        return output.length > 1 ? output : output[0];
     }
 }

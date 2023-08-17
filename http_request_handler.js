@@ -96,17 +96,38 @@ export default class HttpReq {
         } else return false;
     }
 
+    // Check That Only One Parameter Is Present And Not Multiples
+
+    static #multipleArguments() {
+        if (arguments[0].length > 1) {
+            console.error('Only one parameter may be passed in for http requests.  For multiple requests, pass in an array.  For a solo "GET" request, pass in a string.');
+            return true;
+        } else return false;
+    }
+
     // HTTP Request Handler
 
     static async init(reqs) {
         const output = [];
+        let nonArray = false;
+        if (this.#multipleArguments(arguments)) {
+            return;
+        }
         if (!reqs || !reqs.length || typeof reqs === "string") {
-            if (typeof reqs === "string" && reqs.includes("http")) {
+            if (reqs && typeof reqs === "string") {
                 reqs = [{url: reqs, method: "GET" }];
-            } else {
-                console.error('A parameter consisting of an array with at least one object containing "url" and "method" keys and values must be passed in to the init function.');
+                nonArray = true;
+            } else if (typeof reqs !== "object"){
+                console.error('A minimum of a string with an http url for a "GET" request must be provided as a paramater for the init function');
                 return;
             }
+        }
+        if (reqs.length && reqs.every(r => typeof r === "string")) {
+            reqs = reqs.map(req => ({url: req, method: "GET"}));
+        }
+        if (reqs && typeof reqs === "object" && !reqs.length)  {
+            nonArray = true; 
+            reqs = [reqs]
         }
         for (let i = 0; reqs.length > i; i++) {
             let response;
@@ -135,6 +156,6 @@ export default class HttpReq {
             }
             output.push(response);
         }
-        return output.length > 1 ? output : output[0];
+        return nonArray ? output[0] : output;
     }
 }

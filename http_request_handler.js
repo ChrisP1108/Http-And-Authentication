@@ -2,9 +2,20 @@ export default class HttpReq {
 
     // HTTP Request Header Content-Type: Application/JSON And Additional Headers
 
-    static #headers(additional) {
-        const headers = {
-            "content-type" : "application/json"
+    static #headers(type, additional) {
+        const headers = { };
+        const ct = "content-type"
+        switch(type) {
+            case 'json':
+                headers[ct] = "application/json";
+                break;
+            case 'html':
+                headers[ct] = "text/html; charset=utf-8";
+                break;
+            case 'upload':
+                break;
+            default: 
+                break;
         }
         if (additional && typeof additional === "object") {
             Object.entries(additional).forEach(entry => {
@@ -31,7 +42,7 @@ export default class HttpReq {
     // Success 200 or 201 Status Code
 
     static async #successRequest(res, headers) {
-        const response = { ok: res.ok, status: res.status, msg: 'Success', request_headers: headers };
+        const response = { ok: res.ok, status: res.status, msg: 'Fulfilled', request_headers: headers };
         response.response_data = await res.json();
         return response;
     }
@@ -54,7 +65,7 @@ export default class HttpReq {
                 response.url = req.url;
             }
             if (req.data) {
-                response.request_data = req.data;
+                response.request_data = req.data ?? null;
             }
             return response;
         } else if (!reqMethods.includes(req.method.toUpperCase())) {
@@ -68,7 +79,7 @@ export default class HttpReq {
                 response.method = `${req.method.toUpperCase()} (Invalid Request Method)`;
             }
             if (req.data) {
-                response.request_data = req.data;
+                response.request_data = req.data ?? null;
             }
             return response;
         } else if (!req.url) {
@@ -79,7 +90,7 @@ export default class HttpReq {
                 response.method = req.method.toUpperCase();
             }
             if (req.data) {
-                response.request_data = req.data;
+                response.request_data = req.data ?? null;
             }
             return response;
         } else if (dataNeeded && !req.data) {
@@ -100,19 +111,16 @@ export default class HttpReq {
 
     static #multipleArguments() {
         if (arguments[0].length > 1) {
-            console.error('Only one parameter may be passed in for http requests.  For multiple requests, pass in an array.  For a solo "GET" request, pass in a string.');
+            console.error('Only one parameter may be passed in for http requests.  For multiple requests, pass in an array.  For a single "GET" request, pass in a string.');
             return true;
         } else return false;
     }
 
     // HTTP Request Handler
 
-    static async init(reqs) {
+    static async #init(reqs, type) {
         const output = [];
         let nonArray = false;
-        if (this.#multipleArguments(arguments)) {
-            return;
-        }
         if (!reqs || !reqs.length || typeof reqs === "string") {
             if (reqs && typeof reqs === "string") {
                 reqs = [{url: reqs, method: "GET" }];
@@ -135,10 +143,15 @@ export default class HttpReq {
             response = this.#reqError(reqs[i], getOrDeleteReq === false);
             if (!response) {
                 const method = reqs[i].method.toUpperCase();
-                const headers = this.#headers(reqs[i].headers);
+                const headers = this.#headers(type, reqs[i].headers);
                 const reqParams = { method, headers };
-                if (getOrDeleteReq === false) {
+                if (getOrDeleteReq === false && type === 'json') {
                     reqParams.body = JSON.stringify(reqs[i].data);
+                }
+                if (type == "upload") {
+                    const formData = new FormData();
+                    formData.append('file', reqs[i].data);
+                    reqParams.body = formData;
                 }
                 try {
                     const res = await fetch(reqs[i].url, reqParams);
@@ -150,12 +163,39 @@ export default class HttpReq {
                 } catch (err) {
                     response = this.#fetchFailed(err, headers);
                 }
-                response.request_data = reqs[i].data;
+                response.request_data = reqs[i].data ?? null;
                 response.url = reqs[i].url;
                 response.method = reqs[i].method.toUpperCase();
             }
             output.push(response);
         }
         return nonArray ? output[0] : output;
+    }
+
+    // HTTP Request JSON Data
+
+    static async json(reqs) {
+        if (this.#multipleArguments(arguments)) {
+            return;
+        }
+        return this.#init(reqs, 'json');
+    }
+
+    // HTTP Request HTML Data
+
+    static async html(reqs) {
+        if (this.#multipleArguments(arguments)) {
+            return;
+        }
+        return this.#init(reqs, 'html');
+    }
+
+    // HTTP Request File Upload
+
+    static async upload(reqs) {
+        if (this.#multipleArguments(arguments)) {
+            return;
+        }
+        return this.#init(reqs, 'upload');
     }
 }

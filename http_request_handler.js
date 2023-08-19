@@ -9,10 +9,10 @@ export default class HttpReq {
             case 'json':
                 headers[ct] = "application/json";
                 break;
-            case 'html':
+            case 'text':
                 headers[ct] = "text/html; charset=utf-8";
                 break;
-            case 'upload':
+            case 'file':
                 break;
             default: 
                 break;
@@ -41,9 +41,9 @@ export default class HttpReq {
 
     // Success 200 or 201 Status Code
 
-    static async #successRequest(res, headers) {
+    static async #successRequest(type, res, headers) {
         const response = { ok: res.ok, status: res.status, msg: 'Fulfilled', request_headers: headers };
-        response.response_data = await res.json();
+        response.response_data = type === 'text' ? await res.text() : await res.json();
         return response;
     }
 
@@ -131,38 +131,49 @@ export default class HttpReq {
             }
         }
         if (reqs.length && reqs.every(r => typeof r === "string")) {
-            reqs = reqs.map(req => ({url: req, method: "GET"}));
+            reqs = reqs.map(req => ({url: req }));
         }
         if (reqs && typeof reqs === "object" && !reqs.length)  {
             nonArray = true; 
             reqs = [reqs]
         }
+        if (type) {
+            reqs = reqs.map(req => ({...req, type}));
+        }
         for (let i = 0; reqs.length > i; i++) {
             let response;
+            if (!reqs[i].method) {
+                reqs[i].method = "GET";
+            }
+            if (!reqs[i].type) {
+                reqs[i].type = "json";
+            }
             const getOrDeleteReq = reqs[i].method.toLowerCase() === "get" || reqs[i].method.toLowerCase() === "delete";
             response = this.#reqError(reqs[i], getOrDeleteReq === false);
             if (!response) {
                 const method = reqs[i].method.toUpperCase();
-                const headers = this.#headers(type, reqs[i].headers);
+                const headers = this.#headers(reqs[i].type, reqs[i].headers);
                 const reqParams = { method, headers };
                 if (getOrDeleteReq === false && type === 'json') {
                     reqParams.body = JSON.stringify(reqs[i].data);
                 }
-                if (type === "upload") {
+                if (reqs[i].type === "file") {
                     const formData = new FormData();
-                    formData.append('file', reqs[i].data);
+                    formData.append('file', reqs[i].file);
                     reqParams.body = formData;
+                    console.log(body);
                 }
                 try {
                     const res = await fetch(reqs[i].url, reqParams);
                     if (res.ok) {
-                        response = await this.#successRequest(res, headers);
+                        response = await this.#successRequest(reqs[i].type, res, headers);
                     } else {
                         response = this.#statusError(res, reqs.url, method, headers);
                     }
                 } catch (err) {
                     response = this.#fetchFailed(err, headers);
                 }
+                response.request_name = reqs[i].name ?? null;
                 response.request_data = reqs[i].data ?? null;
                 response.url = reqs[i].url;
                 response.method = reqs[i].method.toUpperCase();
@@ -183,11 +194,11 @@ export default class HttpReq {
 
     // HTTP Request HTML Data
 
-    static async html(reqs) {
+    static async text(reqs) {
         if (this.#multipleArguments(arguments)) {
             return;
         }
-        return this.#init(reqs, 'html');
+        return this.#init(reqs, 'text');
     }
 
     // HTTP Request File Upload
@@ -196,6 +207,15 @@ export default class HttpReq {
         if (this.#multipleArguments(arguments)) {
             return;
         }
-        return this.#init(reqs, 'upload');
+        return this.#init(reqs, 'file');
+    }
+
+    // HTTP Multiple Requests Any Type
+
+    static async multi(reqs) {
+        if (this.#multipleArguments(arguments)) {
+            return;
+        }
+        return this.#init(reqs);
     }
 }

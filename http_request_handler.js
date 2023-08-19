@@ -148,7 +148,7 @@ export default class HttpReq {
                 if (getOrDeleteReq === false && type === 'json') {
                     reqParams.body = JSON.stringify(reqs[i].data);
                 }
-                if (type == "upload") {
+                if (type === "upload") {
                     const formData = new FormData();
                     formData.append('file', reqs[i].data);
                     reqParams.body = formData;

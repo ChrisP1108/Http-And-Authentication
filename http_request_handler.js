@@ -49,7 +49,7 @@ export default class HttpReq {
 
     // Request Error Handler
 
-    static #reqError(req, dataNeeded) {
+    static #reqError(req, dataNeeded, type) {
         const statusKeys = { ok: false, status: null };
         const reqMethods = ["GET", "POST", "PUT", "DELETE"];
         const headers = this.#headers(req.headers);
@@ -104,6 +104,11 @@ export default class HttpReq {
                 response.url = req.url;
             }
             return response;
+        } else if (type === "file" && !req.file) {
+            const noFileParam = `File upload request must have an object parameter with a "file" key.`;
+            console.error(noFileParam);
+            const response = { ...statusKeys, msg: noFileParam, request_headers: headers, file: null };
+            return response;
         } else return false;
     }
 
@@ -149,7 +154,7 @@ export default class HttpReq {
                 reqs[i].type = "json";
             }
             const getOrDeleteReq = reqs[i].method.toLowerCase() === "get" || reqs[i].method.toLowerCase() === "delete";
-            response = this.#reqError(reqs[i], getOrDeleteReq === false);
+            response = this.#reqError(reqs[i], getOrDeleteReq === false, type);
             if (!response) {
                 const method = reqs[i].method.toUpperCase();
                 const headers = this.#headers(reqs[i].type, reqs[i].headers);

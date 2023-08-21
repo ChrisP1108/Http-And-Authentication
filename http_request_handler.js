@@ -161,7 +161,6 @@ export default class HttpReq {
                     const formData = new FormData();
                     formData.append('file', reqs[i].file);
                     reqParams.body = formData;
-                    console.log(body);
                 }
                 try {
                     const res = await fetch(reqs[i].url, reqParams);

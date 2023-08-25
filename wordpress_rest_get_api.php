@@ -6,27 +6,27 @@
 
         private $url;
         private $route;
-        private $headers;
+        private $token;
 
         // Make GET Request
 
         function get_data() {
 
-            // Fetch data from the external API
+            // Setup headers for JSON
 
-            if (!$this->url) {
-                return new WP_Error('no_url_provided', 'No url provided to make GET request to.', array('status' => 400));
+            $headers = [
+                'Content-Type' => 'application/json',
+            ];
+
+            // Check if there is a token and add it to headers
+
+            if ($this->token) {
+                $headers['Authorization'] = 'Bearer ' . $this->token;
             }
-
-            // Make GET Request.  If header data present, include it also with request.
-
-            $response = null;
             
-            if ($this->headers) {
-                $response = wp_remote_get($this->url, ['headers' => $this->headers]);
-            } else {
-                $response = wp_remote_get($this->url);
-            }
+            // Make GET Request
+
+            $response = wp_safe_remote_get($this->url, ['headers' => $headers]);
 
             // Check for a valid response
 
@@ -73,10 +73,10 @@
 
         // Constructor.  Runs when class is instantiated.
 
-        function __construct($url = null, $route = null, $headers = null) {
+        function __construct($url = null, $route = null, $token = null) {
             $this->url = $url;
             $this->route = $route;
-            $this->headers = $headers;
+            $this->token = $token;
 
             if ($this->route && $this->url) {
                 add_action('rest_api_init', [$this, 'wp_rest_api_register_route']);
@@ -86,4 +86,8 @@
         }
     }
 
-    // $post_data = new WP_Register_Rest_Get_Route("https://jsonplaceholder.typicode.com/posts", "posts");
+    // POST API KEY
+
+    // define("POST_API_TOKEN", "abe91hg62gf82");	
+
+    // $post_data = new WP_Register_Rest_Get_Route("https://jsonplaceholder.typicode.com/posts", "posts", POST_API_TOKEN);

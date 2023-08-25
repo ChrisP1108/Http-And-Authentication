@@ -88,6 +88,6 @@
 
     // POST API KEY
 
-    // define("POST_API_TOKEN", "abe91hg62gf82");	
+    // define("TESTER_API_TOKEN", "abe91hg62gf82");	
 
-    // $post_data = new WP_Register_Rest_Get_Route("https://jsonplaceholder.typicode.com/posts", "posts", POST_API_TOKEN);
+    // $post_data = new WP_Register_Rest_Get_Route("https://echo.zuplo.io/", "tester", TESTER_API_TOKEN);

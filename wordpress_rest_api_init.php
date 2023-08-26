@@ -143,8 +143,8 @@
                     return new WP_Error('domain_not_allowed', 'Access from external domains is not allowed.', array('status' => 403));
                 }
             } 
-            if ($this->permissions_callback !== null && is_callable($this->permissions_callback)) {
-                return call_user_func($this->permissions_callback, $request);
+            if ($this->permission_callback !== null && is_callable($this->permission_callback)) {
+                return call_user_func($this->permission_callback, $request);
             } else return true;
         }
 

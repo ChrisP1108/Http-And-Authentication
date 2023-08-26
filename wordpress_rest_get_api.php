@@ -7,6 +7,7 @@
         private $url;
         private $route;
         private $headers;
+        private $api_key;
 
         // Make GET Request
 
@@ -47,7 +48,7 @@
 
                     } else if ($param_name === 'require_api_key_header') {
                         $headers[$param_value] = $this->api_key;
-                        
+
                     } else {
                         $params_string .= $param_name . '=' . urlencode($param_value);
                     }

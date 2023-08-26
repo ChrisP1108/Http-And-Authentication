@@ -6,27 +6,61 @@
 
         private $url;
         private $route;
-        private $token;
+        private $headers;
 
         // Make GET Request
 
-        function get_data() {
+        function get_data($request) {
 
-            // Setup headers for JSON
+            // Initialize headers variable
 
-            $headers = [
-                'Content-Type' => 'application/json',
-            ];
+            $headers = [];
 
-            // Check if there is a token and add it to headers
+            // Check if there are headers passed in on the backend
 
-            if ($this->token) {
-                $headers['Authorization'] = 'Bearer ' . $this->token;
+            if ($this->headers) {
+				forEach($this->headers as $head_name => $head_value) {
+                	$headers[$head_name] = $head_value;
+				}
             }
+
+            // Get URL parameters
+
+            $params = $request->get_params();
+
+            // Parse URL parameters into string if parameters found
+
+            $params_string = '';
+
+            if (!empty($params)) {
+
+                foreach($params as $param_name => $param_value) {
+
+                    if (!empty($params_string)) {
+                        $params_string .= '&';
+                    }
+
+                    // Check for parameter 'require_api_key' and its value to see where it needs to be inserted.  Either in the url parameter or header
+
+                    if ($param_name === 'require_api_key_parameter') {
+                        $params_string .= $param_value . '=' . $this->api_key;
+
+                    } else if ($param_name === 'require_api_key_header') {
+                        $headers[$param_value] = $this->api_key;
+                        
+                    } else {
+                        $params_string .= $param_name . '=' . urlencode($param_value);
+                    }
+                }
+            }
+
+            // Add stringified URL parameters into route
+
+            $request_with_params = $this->url . '?' . $params_string;
             
             // Make GET Request
 
-            $response = wp_safe_remote_get($this->url, ['headers' => $headers]);
+            $response = wp_safe_remote_get($request_with_params, ['headers' => $headers]);
 
             // Check for a valid response
 
@@ -73,10 +107,11 @@
 
         // Constructor.  Runs when class is instantiated.
 
-        function __construct($url = null, $route = null, $token = null) {
+        function __construct($url = null, $route = null, $headers= null, $api_key = null) {
             $this->url = $url;
             $this->route = $route;
-            $this->token = $token;
+            $this->headers = $headers;
+            $this->api_key = $api_key;
 
             if ($this->route && $this->url) {
                 add_action('rest_api_init', [$this, 'wp_rest_api_register_route']);
@@ -86,8 +121,8 @@
         }
     }
 
-    // POST API KEY
+    // TESTER API KEY
 
-    // define("TESTER_API_TOKEN", "abe91hg62gf82");	
+    // define("TESTER_API_KEY", "abe91hg62gf82");	
 
-    // $post_data = new WP_Register_Rest_Get_Route("https://echo.zuplo.io/", "tester", TESTER_API_TOKEN);
+    // new WP_Register_Rest_Get_Route("https://echo.zuplo.io/", "tester", ['testing' => 'tester'], TESTER_API_KEY);

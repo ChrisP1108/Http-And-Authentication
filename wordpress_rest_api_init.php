@@ -8,122 +8,179 @@
         private $url;
         private $route;
         private $headers;
+        private $file_name;
+        private $file_storage_interval;
         private $api_key;
+        private $domain_restricted;
         private $permission_callback;
+        private $custom_controller;
 
         // Make Request
 
         public function initialize($request) {
 
-            // Initialize headers variable
+            // If custom_controller property was made, run it here and bypass the rest of the code in the initialize method
 
-            $headers = [];
-
-            // Check if there are headers passed in on the backend
-
-            if ($this->headers) {
-				forEach($this->headers as $head_name => $head_value) {
-                	$headers[$head_name] = $head_value;
-				}
+            if ($this->custom_controller !== null && is_callable($this->custom_controller)) {
+                return call_user_func($this->custom_controller, $request);
             }
 
-            // Add headers from the frontend
+            // Check if file path specified.  If so, check for file and that it is not past expiration.  Otherwise make new HTTP request and save file.
 
-            $req_headers = $request->get_headers();
+            $file_path = 'wp-content/' . $this->file_name . '.txt';
+            $load_file = false;
+            $save_file = false;
 
-            if (!empty($req_headers)) {
-                forEach($req_headers as $head_name => $head_value) {
-                    if ($head_name !== "host") {
-                        $headers[$head_name] = $head_value[0];
+            // Initialize parsed data variable
+
+            $parsed_data = [];
+            
+            if ($this->file_name !== null) {
+                if (file_exists($file_path)) {
+                    $file_json = file_get_contents($file_path);
+                    $file_data = json_decode($file_json, true);
+
+                    if($file_data && isset($file_data['expiration_time']) && isset($file_data['data']) && isset($file_data['saved_time'])) {
+                        $current_time = time();
+                        $expiration_time = $file_data['expiration_time'];
+
+                        if ($current_time > $expiration_time) {
+                            $save_file = true;
+                        } else {
+                            $load_file = true;
+                            $parsed_data = $file_data;
+                        }
+                    }
+
+                } else $save_file = true;
+            }
+
+            if (!$load_file) {
+
+                // Initialize headers variable
+
+                $headers = [];
+
+                // Check if there are headers passed in on the backend
+
+                if ($this->headers) {
+                    forEach($this->headers as $head_name => $head_value) {
+                        $headers[$head_name] = $head_value;
                     }
                 }
-            }
 
-            // Get URL parameters
+                // Add headers from the frontend
 
-            $params = $request->get_params();
+                $req_headers = $request->get_headers();
 
-            $delete_id = '';
-
-            // If method is a DELETE Request, add id to url prior to adding parameters
-
-            foreach($params as $param_name => $param_value) {
-                if ($param_name === 'delete_id') {
-                    $delete_id .= $param_value;
+                if (!empty($req_headers)) {
+                    forEach($req_headers as $head_name => $head_value) {
+                        if ($head_name !== "host") {
+                            $headers[$head_name] = $head_value[0];
+                        }
+                    }
                 }
-            }
 
-            // Parse URL parameters into string if parameters found
+                // Get URL parameters
 
-            $params_string = '';
+                $params = $request->get_params();
 
-            if (!empty($params)) {
+                $delete_id = '';
+
+                // If method is a DELETE Request, add id to url prior to adding parameters
 
                 foreach($params as $param_name => $param_value) {
-
-                    if (!empty($params_string)) {
-                        $params_string .= '&';
-                    }
-
-                    // Check for parameter 'require_api_key' and its value to see where it needs to be inserted.  Either in the url parameter or header
-
-                    if ($param_name === 'require_api_key_parameter' || $param_name === 'require_api_key_header') {
-                        if ($param_name === 'require_api_key_parameter') {
-                            $params_string .= $param_value . '=' . $this->api_key;
-                        }
-                        if ($param_name === 'require_api_key_header') {
-                            $headers[$param_value] = $this->api_key;
-                        }
-
-                    } else if ($param_name !== 'delete_id') {
-                        $params_string .= $param_name . '=' . urlencode($param_value);
+                    if ($param_name === 'delete_id') {
+                        $delete_id .= $param_value;
                     }
                 }
-            }
 
-            // Add stringified URL parameters into route
+                // Parse URL parameters into string if parameters found
 
-            $request_with_params = $this->url . $delete_id . '?' . $params_string;
+                $params_string = '';
 
-            // Parse Request Body
+                if (!empty($params)) {
 
-            $body_params = $request->get_body_params();
-            
-            // Make HTTP request to url
+                    foreach($params as $param_name => $param_value) {
 
-            $response = null;
+                        if (!empty($params_string)) {
+                            $params_string .= '&';
+                        }
 
-            switch($this->method) {
-                case 'GET':
-                    $response = wp_safe_remote_get($request_with_params, ['headers' => $headers]);
-                    break;
-                case 'POST':
-                    $response = wp_remote_post($request_with_params, ['headers' => $headers, 'body' => $body_params]);
-                    break;
-                case 'PUT':
-                    $response = wp_remote_request($request_with_params, ['method' => 'PUT', 'headers' => $headers, 'body' => $body_params]);
-                    break;
-                case 'DELETE':
-                    $response = wp_remote_request($request_with_params, ['method' => 'DELETE', 'headers' => $headers]);
-                    break;
-            }
+                        // Check for parameter 'require_api_key' and its value to see where it needs to be inserted.  Either in the url parameter or header
 
-            // Check for a valid response
+                        if ($param_name === 'require_api_key_parameter' || $param_name === 'require_api_key_header') {
+                            if ($param_name === 'require_api_key_parameter') {
+                                $params_string .= $param_value . '=' . $this->api_key;
+                            }
+                            if ($param_name === 'require_api_key_header') {
+                                $headers[$param_value] = $this->api_key;
+                            }
 
-            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) > 201) {
-                $res = $response['response'];
-                return new WP_Error('api_error', $res['message'], array('status' => $res['code']));
-            }
+                        } else if ($param_name !== 'delete_id') {
+                            $params_string .= $param_name . '=' . urlencode($param_value);
+                        }
+                    }
+                }
 
-            // Get the response body
+                // Add stringified URL parameters into route
 
-            $data = wp_remote_retrieve_body($response);
+                $request_with_params = $this->url . $delete_id . '?' . $params_string;
 
-            // Decode the JSON data
+                // Parse Request Body
 
-            $decoded_data = json_decode($data);
+                $body_params = $request->get_body_params();
+                
+                // Make HTTP request to url
 
-            return rest_ensure_response($decoded_data);
+                $response = null;
+
+                switch($this->method) {
+                    case 'GET':
+                        $response = wp_safe_remote_get($request_with_params, ['headers' => $headers]);
+                        break;
+                    case 'POST':
+                        $response = wp_remote_post($request_with_params, ['headers' => $headers, 'body' => $body_params]);
+                        break;
+                    case 'PUT':
+                        $response = wp_remote_request($request_with_params, ['method' => 'PUT', 'headers' => $headers, 'body' => $body_params]);
+                        break;
+                    case 'DELETE':
+                        $response = wp_remote_request($request_with_params, ['method' => 'DELETE', 'headers' => $headers]);
+                        break;
+                }
+
+                // Check for a valid response
+
+                if (is_wp_error($response) || wp_remote_retrieve_response_code($response) > 201) {
+                    $res = $response['response'];
+                    return new WP_Error('api_error', $res['message'], array('status' => $res['code']));
+                }
+
+                // Get the response body
+
+                $data = wp_remote_retrieve_body($response);
+
+                $parsed_data = [
+                    'expiration_time' => time() + $this->file_storage_interval,
+                    'data' => json_decode($data),
+                    'saved_time' => time()
+                ];
+
+                // If $save_file is true, save the data to the file path
+
+                if ($save_file && $this->file_name !== null) {
+                    file_put_contents($file_path, json_encode($parsed_data));
+                }
+            } 
+
+            // Set current time time loaded
+
+            $parsed_data['time_loaded'] = time();
+
+            // Return data
+
+            return rest_ensure_response($parsed_data);
         }
 
         // Check that request is coming from same domain to prevent external URL usage
@@ -185,9 +242,12 @@
             $this->url = strtolower($parameters['url']) ?? null;
             $this->route = strtolower($parameters['route']) ?? null;
             $this->headers = $parameters['headers'] ?? null;
+            $this->file_name = $parameters['file_name'] ?? null;
+            $this->file_storage_interval = intval($parameters['file_storage_interval']) ?? 0;
             $this->api_key = $parameters['api_key'] ?? null;
             $this->domain_restricted = $parameters['domain_restricted'] ?? false;
             $this->permission_callback = $parameters['permission_callback'] ?? null;
+            $this->custom_controller = $parameters['custom_controller'] ?? null;
 
             if ($this->url && $this->route) {
                 add_action('rest_api_init', [$this, 'wp_rest_api_register_route']);
@@ -206,9 +266,12 @@
     //     'url' => 'https://echo.zuplo.io/',
     //     'route' => 'tester',
     //     'headers' => ['test_head' => 'test_value'],
+    //     'file_name' => 'api_test',
+    //     'file_storage_interval' => 90,
     //     'api_key' => TESTER_API_KEY,
     //     'domain_restricted' => false,
     //     'permission_callback' =>  function($request) {
     //         return true;
-    //     }
+    //     },
+    //     'custom_controller' => null
     // ]);

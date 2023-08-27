@@ -8,8 +8,8 @@
         private $url;
         private $route;
         private $headers;
-        private $file_name;
-        private $file_storage_interval;
+        private $cache_name;
+        private $storage_interval;
         private $api_key;
         private $domain_restricted;
         private $permission_callback;
@@ -27,35 +27,43 @@
 
             // Check if file path specified.  If so, check for file and that it is not past expiration.  Otherwise make new HTTP request and save file.
 
-            $file_path = 'wp-content/' . $this->file_name . '.txt';
-            $load_file = false;
-            $save_file = false;
+            $load_cache = false;
+            $save_cache = false;
 
             // Initialize parsed data variable
 
             $parsed_data = [];
             
-            if ($this->file_name !== null) {
-                if (file_exists($file_path)) {
-                    $file_json = file_get_contents($file_path);
-                    $file_data = json_decode($file_json, true);
+            if ($this->cache_name !== null) {
+                $cache_data = get_transient($this->cache_name);
 
-                    if($file_data && isset($file_data['expiration_time']) && isset($file_data['data']) && isset($file_data['saved_time'])) {
+                if ($cache_data !== false) {
+                    $parsed_cache = json_decode($cache_data, true);
+
+                    if(isset($parsed_cache['expiration_time']) && isset($parsed_cache['data']) && isset($parsed_cache['saved_time'])) {
                         $current_time = time();
-                        $expiration_time = $file_data['expiration_time'];
+                        $expiration_time = $parsed_cache['expiration_time'];
 
                         if ($current_time > $expiration_time) {
-                            $save_file = true;
+                            $save_cache = true;
+                            delete_transient($this->cache_name);
                         } else {
-                            $load_file = true;
-                            $parsed_data = $file_data;
+                            $load_cache = true;
+                            $parsed_data = $parsed_cache;
+                            $parsed_data['api_call_made'] = false;
                         }
+                    } else {
+                        $save_cache = true;
+                        delete_transient($this->cache_name);
                     }
 
-                } else $save_file = true;
+                } else {
+                    $save_cache = true;
+                    delete_transient($this->cache_name);
+                }
             }
 
-            if (!$load_file) {
+            if (!$load_cache) {
 
                 // Initialize headers variable
 
@@ -162,16 +170,18 @@
                 $data = wp_remote_retrieve_body($response);
 
                 $parsed_data = [
-                    'expiration_time' => time() + $this->file_storage_interval,
+                    'expiration_time' => time() + $this->storage_interval,
                     'data' => json_decode($data),
                     'saved_time' => time()
                 ];
 
-                // If $save_file is true, save the data to the file path
+                // If $save_cache is true, save the data to the cache
 
-                if ($save_file && $this->file_name !== null) {
-                    file_put_contents($file_path, json_encode($parsed_data));
+                if ($save_cache && $this->cache_name !== null) {
+                    set_transient($this->cache_name, json_encode($parsed_data), intval($this->storage_interval) - 1);
                 }
+
+                $parsed_data['api_call_made'] = true;
             } 
 
             // Set current time time loaded
@@ -242,8 +252,8 @@
             $this->url = strtolower($parameters['url']) ?? null;
             $this->route = strtolower($parameters['route']) ?? null;
             $this->headers = $parameters['headers'] ?? null;
-            $this->file_name = $parameters['file_name'] ?? null;
-            $this->file_storage_interval = intval($parameters['file_storage_interval']) ?? 0;
+            $this->cache_name = $parameters['cache_name'] ?? null;
+            $this->storage_interval = intval($parameters['storage_interval']) ?? 0;
             $this->api_key = $parameters['api_key'] ?? null;
             $this->domain_restricted = $parameters['domain_restricted'] ?? false;
             $this->permission_callback = $parameters['permission_callback'] ?? null;
@@ -266,8 +276,8 @@
     //     'url' => 'https://echo.zuplo.io/',
     //     'route' => 'tester',
     //     'headers' => ['test_head' => 'test_value'],
-    //     'file_name' => 'api_test',
-    //     'file_storage_interval' => 90,
+    //     'cache_name' => 'api_test',
+    //     'storage_interval' => 90,
     //     'api_key' => TESTER_API_KEY,
     //     'domain_restricted' => false,
     //     'permission_callback' =>  function($request) {

@@ -15,6 +15,15 @@
         private $permission_callback;
         private $custom_controller;
 
+        // Convert time into milliseconds for frontend javascript
+
+        public function convert_times_to_milliseconds($data) {
+            $time_formatted_data = $data;
+            $time_formatted_data['expiration_time'] = intval($data['expiration_time']) * 1000;
+            $time_formatted_data['saved_time'] = intval($data['saved_time']) * 1000;
+            return $time_formatted_data;
+        }
+
         // Make Request
 
         public function initialize($request) {
@@ -49,7 +58,7 @@
                             delete_transient($this->cache_name);
                         } else {
                             $load_cache = true;
-                            $parsed_data = $parsed_cache;
+                            $parsed_data = $this->convert_times_to_milliseconds($parsed_cache);
                             $parsed_data['api_call_made'] = false;
                         }
                     } else {
@@ -169,7 +178,7 @@
 
                 $data = wp_remote_retrieve_body($response);
 
-                $parsed_data = [
+                $set_data = [
                     'expiration_time' => time() + $this->storage_interval,
                     'data' => json_decode($data),
                     'saved_time' => time()
@@ -178,15 +187,19 @@
                 // If $save_cache is true, save the data to the cache
 
                 if ($save_cache && $this->cache_name !== null) {
-                    set_transient($this->cache_name, json_encode($parsed_data), intval($this->storage_interval) - 1);
+                    set_transient($this->cache_name, json_encode($set_data), intval($this->storage_interval) - 1);
                 }
+
+                // Convert times to milliseconds for frontend javascript
+
+                $parsed_data = $this->convert_times_to_milliseconds($set_data);
 
                 $parsed_data['api_call_made'] = true;
             } 
 
             // Set current time time loaded
 
-            $parsed_data['time_loaded'] = time();
+            $parsed_data['time_loaded'] = time() * 1000;
 
             // Return data
 

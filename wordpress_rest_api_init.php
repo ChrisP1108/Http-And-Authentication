@@ -261,7 +261,7 @@
         // Constructor.  Runs when class is instantiated.
 
         public function __construct($parameters) {
-            $this->method = $this->method_parse($parameters['method'] ?? null);
+            $this->method = $this->method_parse($parameters['method'] ?? 'GET');
             $this->url = strtolower($parameters['url']) ?? null;
             $this->route = strtolower($parameters['route']) ?? null;
             $this->headers = $parameters['headers'] ?? null;

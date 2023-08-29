@@ -43,7 +43,7 @@
 
             $parsed_data = [];
             
-            if ($this->cache_name !== null) {
+            if ($this->cache_name !== null && $this->method === 'GET') {
                 $cache_data = get_transient($this->cache_name);
 
                 if ($cache_data !== false) {

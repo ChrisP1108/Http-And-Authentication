@@ -72,6 +72,8 @@
                 }
             }
 
+            // Make API Call if request is not GET or if data is not being loaded from the cache
+
             if (!$load_cache) {
 
                 // Initialize headers variable

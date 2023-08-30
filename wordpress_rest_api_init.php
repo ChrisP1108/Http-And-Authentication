@@ -24,25 +24,63 @@
             return $time_formatted_data;
         }
 
-        // Make Request
+        // Set URL parameters
 
-        public function initialize($request) {
+        public function set_url_parameters($req_data) {
+            if ($req_data) {
 
-            // If custom_controller property was made, run it here and bypass the rest of the code in the initialize method
+                // Get URL parameters
 
-            if ($this->custom_controller !== null && is_callable($this->custom_controller)) {
-                return call_user_func($this->custom_controller, $request);
-            }
+                $url_params = $req_data->get_params();
+                $param_id = '';
 
-            // Check if file path specified.  If so, check for file and that it is not past expiration.  Otherwise make new HTTP request and save file.
+                // If add id to url for id prior to adding parameters
 
-            $load_cache = false;
-            $save_cache = false;
+                foreach($url_params as $param_name => $param_value) {
+                    if ($param_name === 'param_id') {
+                        $param_id .= $param_value;
+                    }
+                }
 
-            // Initialize parsed data variable
+                // Parse URL parameters into string if parameters found
 
-            $parsed_data = [];
-            
+                $params_string = '';
+
+                foreach($url_params as $param_name => $param_value) {
+
+                    if (!empty($params_string)) {
+                        $params_string .= '&';
+                    }
+
+                    // Check for parameter 'require_api_key' and its value to see where it needs to be inserted.  Either in the url parameter or header
+
+                    if ($param_name === 'require_api_key_parameter' || $param_name === 'require_api_key_header') {
+                        if ($param_name === 'require_api_key') {
+                            $params_string .= $param_value . '=' . $this->api_key;
+                        }
+
+                    } else if ($param_name !== 'param_id') {
+                        $params_string .= $param_name . '=' . urlencode($param_value);
+                    }
+                }
+
+                // Combine url with param_id and params_string and return value
+
+                return $this->url . $param_id . '?' . $params_string;
+
+            } else return $this->url;
+        }
+
+        // Load from cache if data present
+
+        public function cache_handler() {
+
+            $load_cache_data = false;
+            $save_cache_data = false;
+            $data_set = [];
+
+            // Check that cache_name exists and check for cache and set variables accordingly
+
             if ($this->cache_name !== null && $this->method === 'GET') {
                 $cache_data = get_transient($this->cache_name);
 
@@ -54,147 +92,159 @@
                         $expiration_time = $parsed_cache['expiration_time'];
 
                         if ($current_time > $expiration_time) {
-                            $save_cache = true;
+                            $save_cache_data = true;
                             delete_transient($this->cache_name);
                         } else {
-                            $load_cache = true;
-                            $parsed_data = $this->convert_times_to_milliseconds($parsed_cache);
-                            $parsed_data['api_call_made'] = false;
+                            $load_cache_data = true;
+                            $data_set = $this->convert_times_to_milliseconds($parsed_cache);
+                            $data_set['api_call_made'] = false;
                         }
                     } else {
-                        $save_cache = true;
+                        $save_cache_data = true;
                         delete_transient($this->cache_name);
                     }
 
                 } else {
-                    $save_cache = true;
+                    $save_cache_data = true;
                     delete_transient($this->cache_name);
                 }
             }
 
-            // Make API Call if request is not GET or if data is not being loaded from the cache
+            return [
+                'load_cache' => $load_cache_data,
+                'save_cache' => $save_cache_data,
+                'data' => $data_set
+            ];
+        }
 
-            if (!$load_cache) {
+        // Set headers
 
-                // Initialize headers variable
+        public function set_headers($req) {
 
-                $headers = [];
+            $headers = [];
 
-                // Check if there are headers passed in on the backend
+            // Check if there are headers passed in on the backend
 
-                if ($this->headers) {
-                    forEach($this->headers as $head_name => $head_value) {
-                        $headers[$head_name] = $head_value;
+            if ($this->headers) {
+                forEach($this->headers as $head_name => $head_value) {
+                    $headers[$head_name] = $head_value;
+                }
+            }
+
+            // Add headers from the frontend
+
+            $req_headers = $req->get_headers();
+
+            if (!empty($req_headers)) {
+                forEach($req_headers as $head_name => $head_value) {
+                    if ($head_name !== "host") {
+                        $headers[$head_name] = $head_value[0];
                     }
                 }
+            }
 
-                // Add headers from the frontend
+            return $headers;
+        }
 
-                $req_headers = $request->get_headers();
+        // Make HTTP Request.  Throw error
 
-                if (!empty($req_headers)) {
-                    forEach($req_headers as $head_name => $head_value) {
-                        if ($head_name !== "host") {
-                            $headers[$head_name] = $head_value[0];
-                        }
-                    }
-                }
+        public function make_http_request($request_data) {
+            $request_url_params = $request_data['url_params'] ?? null;
+            $request_headers = $request_data['headers'] ?? null;
+            $request_body = $request_data['body'] ?? null;
 
-                // Get URL parameters
+            $response = null;
 
-                $params = $request->get_params();
+            if ($request_url_params) {
 
-                $delete_id = '';
-
-                // If method is a DELETE Request, add id to url prior to adding parameters
-
-                foreach($params as $param_name => $param_value) {
-                    if ($param_name === 'delete_id') {
-                        $delete_id .= $param_value;
-                    }
-                }
-
-                // Parse URL parameters into string if parameters found
-
-                $params_string = '';
-
-                if (!empty($params)) {
-
-                    foreach($params as $param_name => $param_value) {
-
-                        if (!empty($params_string)) {
-                            $params_string .= '&';
-                        }
-
-                        // Check for parameter 'require_api_key' and its value to see where it needs to be inserted.  Either in the url parameter or header
-
-                        if ($param_name === 'require_api_key_parameter' || $param_name === 'require_api_key_header') {
-                            if ($param_name === 'require_api_key_parameter') {
-                                $params_string .= $param_value . '=' . $this->api_key;
-                            }
-                            if ($param_name === 'require_api_key_header') {
-                                $headers[$param_value] = $this->api_key;
-                            }
-
-                        } else if ($param_name !== 'delete_id') {
-                            $params_string .= $param_name . '=' . urlencode($param_value);
-                        }
-                    }
-                }
-
-                // Add stringified URL parameters into route
-
-                $request_with_params = $this->url . $delete_id . '?' . $params_string;
-
-                // Parse Request Body
-
-                $body_params = $request->get_body_params();
-                
-                // Make HTTP request to url
-
-                $response = null;
+                // Make HTTP Request
 
                 switch($this->method) {
                     case 'GET':
-                        $response = wp_safe_remote_get($request_with_params, ['headers' => $headers]);
+                        $response = wp_safe_remote_get($request_url_params, ['headers' => $request_headers]);
                         break;
                     case 'POST':
-                        $response = wp_remote_post($request_with_params, ['headers' => $headers, 'body' => $body_params]);
+                        $response = wp_remote_post($request_url_params, ['headers' => $request_headers, 'body' => $request_body]);
                         break;
                     case 'PUT':
-                        $response = wp_remote_request($request_with_params, ['method' => 'PUT', 'headers' => $headers, 'body' => $body_params]);
+                        $response = wp_remote_request($request_url_params, ['method' => 'PUT', 'headers' => $request_headers, 'body' => $request_body]);
                         break;
                     case 'DELETE':
-                        $response = wp_remote_request($request_with_params, ['method' => 'DELETE', 'headers' => $headers]);
+                        $response = wp_remote_request($request_url_params, ['method' => 'DELETE', 'headers' => $request_headers]);
                         break;
                 }
 
-                // Check for a valid response
+                // Check for a valid response.  Throw error if something went wrong
 
                 if (is_wp_error($response) || wp_remote_retrieve_response_code($response) > 201) {
                     $res = $response['response'];
                     return new WP_Error('api_error', $res['message'], array('status' => $res['code']));
                 }
 
-                // Get the response body
+            }
 
-                $data = wp_remote_retrieve_body($response);
+            $data_body = wp_remote_retrieve_body($response);
 
-                $set_data = [
-                    'expiration_time' => time() + $this->storage_interval,
-                    'data' => json_decode($data),
-                    'saved_time' => time()
-                ];
+            return [
+                'expiration_time' => time() + $this->storage_interval,
+                'data' => json_decode($data_body),
+                'saved_time' => time()
+            ];
+        }
+
+        // General handler
+
+        public function initialize($request) {
+
+            // If custom_controller property was made, run it here and bypass the rest of the code in the initialize method
+
+            if ($this->custom_controller !== null && is_callable($this->custom_controller)) {
+                return call_user_func($this->custom_controller, $request);
+            }
+
+            // Check if data for GET request is already saved in the cache.  Otherwise make new HTTP request and save file.
+
+            $cache_info = $this->cache_handler();
+            $load_cache = $cache_info['load_cache'];
+            $save_cache = $cache_info['save_cache'];
+
+            // Initialize parsed data variable
+
+            $parsed_data = $cache_info['data'];
+
+            // Make API Call if request is not GET or if data is not being loaded from the cache
+
+            if (!$load_cache) {
+
+                // Initialize headers 
+
+                $headers = $this->set_headers($request);
+
+                // Get URL parameters
+
+                $request_with_params = $this->set_url_parameters($request);
+
+                // Parse Request Body
+
+                $body_params = $request->get_body_params();
+                
+                // Make HTTP request to url and get data.  Error thrown if something went wrong
+
+                $data = $this->make_http_request([
+                    'url_params' => $request_with_params,
+                    'headers' => $headers,
+                    'body' => $body_params
+                ]);
 
                 // If $save_cache is true, save the data to the cache
 
                 if ($save_cache && $this->cache_name !== null) {
-                    set_transient($this->cache_name, json_encode($set_data), intval($this->storage_interval) - 1);
+                    set_transient($this->cache_name, json_encode($data), intval($this->storage_interval) - 1);
                 }
 
                 // Convert times to milliseconds for frontend javascript
 
-                $parsed_data = $this->convert_times_to_milliseconds($set_data);
+                $parsed_data = $this->convert_times_to_milliseconds($data);
 
                 $parsed_data['api_call_made'] = true;
             } 
@@ -268,7 +318,7 @@
             $this->route = strtolower($parameters['route']) ?? null;
             $this->headers = $parameters['headers'] ?? null;
             $this->cache_name = $parameters['cache_name'] ?? null;
-            $this->storage_interval = intval($parameters['storage_interval']) ?? 0;
+            $this->storage_interval = intval($parameters['storage_interval']) ?? 60;
             $this->api_key = $parameters['api_key'] ?? null;
             $this->domain_restricted = $parameters['domain_restricted'] ?? false;
             $this->permission_callback = $parameters['permission_callback'] ?? null;
@@ -277,7 +327,7 @@
             if ($this->url && $this->route) {
                 add_action('rest_api_init', [$this, 'wp_rest_api_register_route']);
             } else {
-                echo 'Error registering REST API route. Check that the instantiation of the "WP_Register_Rest_API_Route" class has a url and route parameters passed into it at a minimum.';
+                return new WP_Error('not_enough_information', 'The WP_Register_Rest_API_Route must have url and route parameters passed in as a minimum.', array('status' => 500));
             }
         }
     }

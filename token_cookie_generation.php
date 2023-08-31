@@ -103,7 +103,7 @@
             if (!$data || !$data['name'] || !$data['value']) {
                 throw new Exception("Cookie name and value parameters required.");
             }
-            setcookie($data['name'], $data['value'], $data['expiration'] ?? self::$expiration_default, '/', '', false, $data['http_only'] ?? false);
+            setcookie($data['name'], $data['value'], $data['expiration'] ?? time() + self::$expiration_default, '/', '', false, $data['http_only'] ?? false);
         }
 
         public static function remove_cookie($name = null) {

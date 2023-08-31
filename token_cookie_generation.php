@@ -11,7 +11,7 @@
 
         // Hash string algorithm for token signature
 
-        public static function pre_hash_stringify($expiration = null) {
+        private static function pre_hash_stringify($expiration = null) {
             if (!$expiration) {
                 throw new Exception("Expiration time required.");
             } else return base64_encode($_SERVER['HTTP_USER_AGENT']). self::$web_token_secret  . base64_encode($expiration);

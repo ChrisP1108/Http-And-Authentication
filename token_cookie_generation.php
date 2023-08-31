@@ -50,7 +50,7 @@
             return base64_encode($token);
         }
 
-        public static function is_valid($cookie = null, $users = null, $key = 'id') {
+        public static function is_valid($cookie = null, $users = null, $user_id_key = 'id') {
 
             if (!$cookie || !$users) {
                 throw new Exception("Cookie and user data required.");
@@ -62,7 +62,7 @@
             
             // Find user in database based upon id in token
             
-            $decoded_id = $decoded[$key] ?? null;
+            $decoded_id = $decoded[$user_id_key] ?? null;
 
             if (!$decoded_id) {
                 return false;
@@ -71,7 +71,7 @@
             $user = null;
             
             foreach($users as $u) {
-                if ($u['id'] == $decoded_id) {
+                if ($u[$user_id_key] == $decoded_id) {
                     $user = $u;
                 }
             }

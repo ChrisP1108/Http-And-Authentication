@@ -14,7 +14,7 @@
         private static function pre_hash_stringify($expiration = null) {
             if (!$expiration) {
                 throw new Exception("Expiration time required.");
-            } else return base64_encode($_SERVER['HTTP_USER_AGENT']). self::$web_token_secret  . base64_encode($expiration);
+            } else return base64_encode($_SERVER['HTTP_USER_AGENT']) . self::$web_token_secret . base64_encode($expiration);
         }
 
         public static function generate($id = null, $expiration = null) {
@@ -50,7 +50,7 @@
             return base64_encode($token);
         }
 
-        public static function is_valid($cookie = null, $users = null, $user_id_key = 'id') {
+        public static function cookie_valid($cookie = null, $users = null, $user_id_key = 'id') {
 
             if (!$cookie || !$users) {
                 throw new Exception("Cookie and user data required.");
@@ -62,7 +62,7 @@
             
             // Find user in database based upon id in token
             
-            $decoded_id = $decoded[$user_id_key] ?? null;
+            $decoded_id = $decoded['id'] ?? null;
 
             if (!$decoded_id) {
                 return false;
@@ -85,7 +85,6 @@
                 // Check if token is expired
 
                 if (intval($expiration_time) <= time()) {
-                    echo 'Token Expired';
                     return false;
                 }
 
@@ -103,7 +102,7 @@
             if (!$data || !$data['name'] || !$data['value']) {
                 throw new Exception("Cookie name and value parameters required.");
             }
-            setcookie($data['name'], $data['value'], $data['expiration'] ?? time() + self::$expiration_default, '/', '', false, $data['http_only'] ?? false);
+            setcookie($data['name'], $data['value'], $data['expiration'] ?? time() + self::$expiration_default, '/', '', $data['secure'] ?? false, $data['http_only'] ?? false);
         }
 
         public static function remove_cookie($name = null) {
@@ -134,11 +133,12 @@
     //         'name' => $cookie_name,
     //         'value' => $token_value,
     //         'expiration' => time() + 86400,
+    //         'secure' => true,
     //         'http_only' => true
     //     ]);
     //     echo '<h1>Cookie set. Hit refresh to test validation.</h1>';
     // } else {
-    //     if (Token::is_valid($cookie, $users, 'id')) {
+    //     if (Token::cookie_valid($cookie, $users, 'id')) {
     //         echo '<h1>Token valid.</h1>';
     //     } else {
     //         Token::remove_cookie($cookie_name);

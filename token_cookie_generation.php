@@ -79,7 +79,6 @@
             // Check if user found.  Otherwise return false
             
             if ($user) {
-                $user_created = strval($user['created']);
                 $expiration_time = strval($decoded['expiration']) ?? '0';
 
                 // Check if token is expired

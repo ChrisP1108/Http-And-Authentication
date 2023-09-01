@@ -110,6 +110,11 @@
             }
             setcookie($name, '', time() - 3000);
         }
+
+        public static function generate_set_cookie($data) {
+            $generated_token = self::generate($data['id'] ?? null, $data['expiration'] ?? null);
+            self::set_cookie($data);
+        }
     }
 
     // $users = [
@@ -128,7 +133,8 @@
     // $token_value = Token::generate($users[0]['id']);
 
     // if (!isset($cookie)) {
-    //     Token::set_cookie ([
+    //     Token::generate_set_cookie ([
+    //         'id' => $users[0]['id'],
     //         'name' => $cookie_name,
     //         'value' => $token_value,
     //         'expiration' => time() + 86400,

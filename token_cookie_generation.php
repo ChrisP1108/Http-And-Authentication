@@ -112,7 +112,7 @@
         }
 
         public static function generate_set_cookie($data) {
-            $generated_token = self::generate($data['id'] ?? null, $data['expiration'] ?? null);
+            $data['value'] = self::generate($data['id'] ?? null, $data['expiration'] ?? null);
             self::set_cookie($data);
         }
     }
@@ -136,7 +136,6 @@
     //     Token::generate_set_cookie ([
     //         'id' => $users[0]['id'],
     //         'name' => $cookie_name,
-    //         'value' => $token_value,
     //         'expiration' => time() + 86400,
     //         'secure' => true,
     //         'http_only' => true

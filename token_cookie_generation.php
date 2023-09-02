@@ -1,9 +1,10 @@
 <?php  
     class Token {
 
-        // Web Token Secret
+        // Web Token Secrets
 
-        private static $web_token_secret = '2814A5@nzPWv&9=`g301v8s5E&sz]=|aV^GWja45-9!$xB<f%cA#xTn@GG#39024';
+        private static $web_token_secret_1 = '2814A5@nzPWv&9=`g301v8s5E&sz]=|aV';
+        private static $web_token_secret_2 = '^GWja45-9!$xB<f%cA#xTn@GG#39024';
 
         // Expiration time after current time in seconds
 
@@ -14,7 +15,7 @@
         private static function pre_hash_stringify($expiration = null) {
             if (!$expiration) {
                 throw new Exception("Expiration time required.");
-            } else return base64_encode($_SERVER['HTTP_USER_AGENT']) . self::$web_token_secret . base64_encode($expiration);
+            } else return self::$web_token_secret_1 . base64_encode($_SERVER['HTTP_USER_AGENT']) . self::$web_token_secret_2 . base64_encode($expiration);
         }
 
         public static function generate($id = null, $expiration = null) {
@@ -32,7 +33,7 @@
             // Hashing Salt Rounds.
 
             $options = [
-                'cost' => 8,
+                'cost' => 10,
             ];  
 
             // Bcrypt Hashing

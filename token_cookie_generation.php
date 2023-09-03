@@ -81,7 +81,7 @@
             $user = null;
             
             foreach($users as $u) {
-                if ($u[$user_id_key] == $decoded_id) {
+                if (strval($u[$user_id_key]) === strval($decoded_id)) {
                     $user = $u;
                 }
             }

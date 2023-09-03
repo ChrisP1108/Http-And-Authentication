@@ -1,10 +1,9 @@
 <?php  
     class Token {
 
-        // Web Token Secrets
+        // Web Token Secret
 
-        private static $web_token_secret_1 = '2814A5@nzPWv&9=`g301v8s5E&sz]=|aV';
-        private static $web_token_secret_2 = '^GWja45-9!$xB<f%cA#xTn@GG#39024';
+        private const WEB_TOKEN_SECRET = '2814A5@nzPWv&9=`g301v8s5E&sz]=|aV^GWja45-9!$xB<f%cA#xTn@GG#39024';
 
         // Expiration time after current time in seconds
 
@@ -13,9 +12,19 @@
         // Hash string algorithm for token signature
 
         private static function pre_hash_stringify($expiration = null) {
+
+            // Split WEB_TOKEN_SECRET in two
+
+            $secret_length = strlen(self::WEB_TOKEN_SECRET);
+
+            $mid_point = $secret_length / 2;
+
+            $first_half_secret = substr(self::WEB_TOKEN_SECRET, 0, $mid_point);
+            $second_half_secret = substr(self::WEB_TOKEN_SECRET, $mid_point);   
+
             if (!$expiration) {
                 throw new Exception("Expiration time required.");
-            } else return self::$web_token_secret_1 . base64_encode($_SERVER['HTTP_USER_AGENT']) . self::$web_token_secret_2 . base64_encode($expiration);
+            } else return $first_half_secret . base64_encode($_SERVER['HTTP_USER_AGENT']) . $second_half_secret . base64_encode($expiration);
         }
 
         public static function generate($id = null, $expiration = null) {

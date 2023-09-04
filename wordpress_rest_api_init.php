@@ -15,6 +15,8 @@
         private $permission_callback;
         private $custom_controller;
 
+        // Public associative array for permission_callback and custom_controller
+
         public $public_data;
 
         // Convert time into milliseconds for frontend javascript
@@ -86,6 +88,8 @@
             if ($this->cache_name !== null && $this->method === 'GET') {
                 $cache_data = get_transient($this->cache_name);
 
+                // If cache data found, check for expiration time
+
                 if ($cache_data !== false) {
                     $parsed_cache = json_decode($cache_data, true);
 
@@ -93,24 +97,42 @@
                         $current_time = time();
                         $expiration_time = $parsed_cache['expiration_time'];
 
+                        // If cache data is expired, cache is deleted and save_cache_data is set to true so an API call can be made on GET request
+
                         if ($current_time > $expiration_time) {
                             $save_cache_data = true;
                             delete_transient($this->cache_name);
                         } else {
+
+                            // If cache is not expired, load cache data
+
                             $load_cache_data = true;
-                            $data_set = $this->convert_times_to_milliseconds($parsed_cache);
-                            $data_set['api_call_made'] = false;
+                            $data_set = $this->method === 'GET' ? $this->convert_times_to_milliseconds($parsed_cache) : $parsed_cache;
+
+                            // Set 'cache_data_load' key if data is coming from the cache on a GET request.  Set to true since data is loaded from cache here
+
+                            if ($this->method === 'GET') {
+                                $data_set['cache_data_load'] = true;
+                            }
                         }
                     } else {
+
+                        // Clears any cache data if specific cache data parameters are not found.  save_cache_data set to true
+
                         $save_cache_data = true;
                         delete_transient($this->cache_name);
                     }
 
                 } else {
+
+                    // Clears any cache data if cache data based on cache name not found.  save_cache_data set to true
+
                     $save_cache_data = true;
                     delete_transient($this->cache_name);
                 }
             }
+
+            // Return cache info
 
             return [
                 'load_cache' => $load_cache_data,
@@ -185,13 +207,24 @@
 
             }
 
+            // Get HTTP body data
+
             $data_body = wp_remote_retrieve_body($response);
 
-            return [
-                'expiration_time' => time() + $this->storage_interval,
-                'data' => json_decode($data_body),
-                'saved_time' => time()
-            ];
+            // Set return data
+
+            $data_return = null;
+
+            $data_return['data'] = json_decode($data_body);
+
+            // If request was GET, set expiration time and saved time for cache info
+
+            if ($this->method === 'GET') {
+                $data_return['expiration_time'] = time() + $this->storage_interval;
+                $data_return['saved_time'] = time();
+            }
+
+            return $data_return;
         }
 
         // General handler
@@ -248,14 +281,18 @@
 
                 // Convert times to milliseconds for frontend javascript
 
-                $parsed_data = $this->convert_times_to_milliseconds($data);
+                $parsed_data = $this->method === 'GET' ? $this->convert_times_to_milliseconds($data) : $data;
 
-                $parsed_data['api_call_made'] = true;
+                // Set 'cache_data_load' key if data is coming from the cache on a GET request.  Set to false since API call is made here
+
+                if ($this->method === 'GET') {
+                    $parsed_data['cache_data_load'] = false;
+                }
             } 
 
             // Set current time time loaded
 
-            $parsed_data['time_loaded'] = time() * 1000;
+            $parsed_data['request_time'] = time() * 1000;
 
             // Return data
 
@@ -265,6 +302,8 @@
         // Check that request is coming from same domain to prevent external URL usage
 
         public function permissions_check($request) {
+
+            // If domain_restricted is set to true, checks for client domain and throw error if client domain doesn't match server domain.
 
             if ($this->domain_restricted === true) {
 
@@ -280,8 +319,12 @@
                 }
             } 
 
+            // Set data for permission_callback.  Add request data into public_data to pass into callback
+
             $callback_data = $this->public_data;
             $callback_data['request'] = $request;
+
+            // Call permission_callback
 
             if ($this->permission_callback !== null && is_callable($this->permission_callback)) {
                 return call_user_func($this->permission_callback, $callback_data);
@@ -356,6 +399,8 @@
             if (!$this->custom_controller && !$this->url) {
                 $insufficient_params = true;
             }
+
+            // Apply add_action Wordpress hook if insufficient_params is false.  Otherwise throw error.
 
             if (!$insufficient_params) {
                 add_action('rest_api_init', [$this, 'wp_rest_api_register_route']);

@@ -108,7 +108,7 @@
         }
 
         public static function set_cookie($data = null) {
-            if (!$data || !$data['name'] || !$data['value']) {
+            if (!$data || !isset($data['name']) || !isset($data['value'])) {
                 throw new Exception("Cookie name and value parameters required.");
             }
             setcookie($data['name'], $data['value'], $data['expiration'] ?? time() + self::$expiration_default, '/', '', $data['secure'] ?? false, $data['http_only'] ?? false);
@@ -122,6 +122,9 @@
         }
 
         public static function generate_set_cookie($data) {
+            if (!$data || !isset($data['name']) || !isset($data['id'])) {
+                throw new Exception("Id and cookie name parameters required.");
+            }
             $data['value'] = self::generate($data['id'] ?? null, $data['expiration'] ?? null);
             self::set_cookie($data);
         }

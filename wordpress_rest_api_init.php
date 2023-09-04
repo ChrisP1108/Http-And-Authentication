@@ -15,6 +15,8 @@
         private $permission_callback;
         private $custom_controller;
 
+        public $public_data;
+
         // Convert time into milliseconds for frontend javascript
 
         public function convert_times_to_milliseconds($data) {
@@ -199,7 +201,9 @@
             // If custom_controller property was made, run it here and bypass the rest of the code in the initialize method
 
             if ($this->custom_controller !== null && is_callable($this->custom_controller)) {
-                return call_user_func($this->custom_controller, $request);
+                $callback_data = $this->public_data;
+                $callback_data['request'] = $request;
+                return call_user_func($this->custom_controller, $callback_data);
             }
 
             // Check if data for GET request is already saved in the cache.  Otherwise make new HTTP request and save file.
@@ -275,8 +279,12 @@
                     return new WP_Error('domain_not_allowed', 'Access from external domains is not allowed.', array('status' => 403));
                 }
             } 
+
+            $callback_data = $this->public_data;
+            $callback_data['request'] = $request;
+
             if ($this->permission_callback !== null && is_callable($this->permission_callback)) {
-                return call_user_func($this->permission_callback, $request);
+                return call_user_func($this->permission_callback, $callback_data);
             } else return true;
         }
 
@@ -324,10 +332,36 @@
             $this->permission_callback = $parameters['permission_callback'] ?? null;
             $this->custom_controller = $parameters['custom_controller'] ?? null;
 
-            if ($this->url && $this->route) {
+            // Set data array for custom controller and permission callback usage
+
+            $this->public_data = [
+                'method' => $this->method,
+                'url' => $this->url,
+                'route' => $this->route,
+                'headers' => $this->headers,
+                'cache_name' => $this->cache_name,
+                'storage_interval' => $this->storage_interval,
+                'api_key' => $this->api_key,
+                'domain_restricted' => $this->domain_restricted
+            ];
+
+            // Check that there are sufficient parameters.  Otherwise throw error.
+
+            $insufficient_params = false;
+
+            if (!$this->route) {
+                $insufficient_params = true;
+            }
+
+            if (!$this->custom_controller && !$this->url) {
+                $insufficient_params = true;
+            }
+
+            if (!$insufficient_params) {
                 add_action('rest_api_init', [$this, 'wp_rest_api_register_route']);
             } else {
-                return new WP_Error('not_enough_information', 'The WP_Register_Rest_API_Route must have url and route parameters passed in as a minimum.', array('status' => 500));
+                return new WP_Error('not_enough_information', 'The WP_Register_Rest_API_Route must have route key and a value in an associative array passed in as a minimum parameter. 
+                    If a custom controller is not used, it must also include a url key and value in the associative array as well.', array('status' => 500));
             }
         }
     }
@@ -345,7 +379,7 @@
     //     'storage_interval' => 90,
     //     'api_key' => TESTER_API_KEY,
     //     'domain_restricted' => false,
-    //     'permission_callback' =>  function($request) {
+    //     'permission_callback' =>  function($data) {
     //         return true;
     //     },
     //     'custom_controller' => null
